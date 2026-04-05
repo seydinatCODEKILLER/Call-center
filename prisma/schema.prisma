@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum NiveauAgent {
+  JUNIOR
+  SENIOR
+  EXPERT
+}
+
+enum PrioriteCategorie {
+  BASSE
+  MOYENNE
+  HAUTE
+  CRITIQUE
+}
+
+enum StatutTicket {
+  OUVERT
+  EN_COURS
+  RESOLU
+  FERME
+}
+
+model Agent {
+  id        Int      @id @default(autoincrement())
+  prenom    String
+  nom       String
+  email     String   @unique
+  telephone String
+  niveau    NiveauAgent
+  tickets   Ticket[]
+
+  @@map("agents")
+}
+
+model Client {
+  id        Int      @id @default(autoincrement())
+  prenom    String
+  nom       String
+  email     String   @unique
+  telephone String
+  societe   String?
+  tickets   Ticket[]
+
+  @@map("clients")
+}
+
+model Categorie {
+  id       Int               @id @default(autoincrement())
+  code     String            @unique
+  libelle  String
+  priorite PrioriteCategorie
+  tickets  Ticket[]
+
+  @@map("categories")
+}
+
+model Ticket {
+  id           Int             @id @default(autoincrement())
+  objet        String
+  description  String
+  dateCreation DateTime        @default(now())
+  statut       StatutTicket    @default(OUVERT)
+
+  clientId     Int
+  agentId      Int
+  categorieId  Int
+
+  client       Client          @relation(fields: [clientId], references: [id])
+  agent        Agent           @relation(fields: [agentId], references: [id])
+  categorie    Categorie       @relation(fields: [categorieId], references: [id])
+
+  @@map("tickets")
+}
