@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: db_call221
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Liverpool040
+      POSTGRES_DB: call221
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build: .
+    container_name: api_call221
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      # ⬇️ La VRAIE URL qui va écraser la fausse URL au démarrage du container
+      - DATABASE_URL=postgresql://postgres:Liverpool040@db:5432/call221?schema=public
+      - CLOUDINARY_CLOUD_NAME=dvzo0zlpg
+      - CLOUDINARY_API_KEY=829332251999145
+      - CLOUDINARY_API_SECRET=1ScxioNb7fwp0RWwlcML8_JwcOc
+      - PORT=3000
+      - NODE_ENV=development
+      - HOST=0.0.0.0
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+      - /app/node_modules
+    # Crée les tables en BDD, puis lance nodemon
+    command: sh -c "npx prisma db push && pnpm run dev"
+
+volumes:
+  postgres_data:
