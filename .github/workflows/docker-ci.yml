@@ -1,0 +1,34 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Se connecter à Docker Hub
+        uses: docker/login-action@v3
+        with:
+             username: ${{ vars.DOCKERHUB_USERNAME }}
+             password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Créer le tag avec le SHA du commit
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+             images: ${{ vars.DOCKERHUB_USERNAME }}/call-center-api
+             tags: |
+               type=sha
+
+      - name: Construire et pousser l'image
+        uses: docker/build-push-action@v6
+        with:
+             context: .
+             push: true
+             tags: ${{ steps.meta.outputs.tags }}
