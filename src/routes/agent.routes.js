@@ -150,7 +150,7 @@ router.patch("/:id", validate(updateAgentSchema), controller.update);
  *     summary: Supprimer un agent
  *     tags: [Agents]
  *     description: >
- *       Supprime un agent de la base de données. 
+ *       Supprime un agent de la base de donnée. 
  *       La suppression est bloquée si l'agent possède des tickets avec le statut 'OUVERT' ou 'EN_COURS'.
  *     parameters:
  *       - in: path
