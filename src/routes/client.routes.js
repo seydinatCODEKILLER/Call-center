@@ -157,7 +157,7 @@ router.patch("/:id", validate(updateClientSchema), controller.update);
  *           type: integer
  *     responses:
  *       200:
- *         description: Client supprimé avec succès
+ *         description: Client supprimé avec succè
  *       400:
  *         description: Impossible de supprimer (le client a des tickets)
  *       404:
