@@ -8,3 +8,5 @@ node_modules
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
+*.pem
+ansible/vars/secrets.yml
