@@ -11,12 +11,11 @@ provider "aws" {
   region = var.region
 }
 
-# Groupe de sécurité (firewall)
+# Groupe de sécurité
 resource "aws_security_group" "call221_sg" {
   name        = "${var.app_name}-sg"
   description = "Groupe de securite pour call221"
 
-  # SSH
   ingress {
     from_port   = 22
     to_port     = 22
@@ -24,7 +23,6 @@ resource "aws_security_group" "call221_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Application
   ingress {
     from_port   = 3000
     to_port     = 3000
@@ -32,7 +30,6 @@ resource "aws_security_group" "call221_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Tout autoriser en sortie
   egress {
     from_port   = 0
     to_port     = 0
@@ -54,5 +51,15 @@ resource "aws_instance" "call221_server" {
 
   tags = {
     Name = var.app_name
+  }
+}
+
+# IP Elastic fixe (ne change jamais)
+resource "aws_eip" "call221_ip" {
+  instance = aws_instance.call221_server.id
+  domain   = "vpc"
+
+  tags = {
+    Name = "${var.app_name}-eip"
   }
 }
