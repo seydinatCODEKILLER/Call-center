@@ -1,11 +1,11 @@
-name: Build and Push Docker Image
+name: Build and Deploy API
 
 on:
   push:
     branches: [ "main" ]
 
 jobs:
-  build-and-push:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -33,65 +33,39 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build-and-push
-
-    steps:
-      - name: Créer le tag du commit
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ vars.DOCKERHUB_USERNAME }}/call-center-api
-          tags: |
-            type=sha
-
-      - name: Déployer sur EC2 via SSH
+      - name: Mettre à jour et redémarrer sur EC2
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd ~/call221
+            cd ~/call-center-app
+            sed -i "s|image: afrocodelatest/call-center-api:.*|image: ${{ steps.meta.outputs.tags }}|g" docker-compose.prod.yml
+            docker compose -f docker-compose.prod.yml pull api
+            docker compose -f docker-compose.prod.yml up -d --no-deps api
 
-            # Mettre à jour l'image dans le docker-compose.yml
-            sed -i "s|image: afrocodelatest/call-center-api:.*|image: ${{ steps.meta.outputs.tags }}|g" docker-compose.yml
-
-            # Se connecter à Docker Hub
-            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ vars.DOCKERHUB_USERNAME }}" --password-stdin
-
-            # Pull la nouvelle image
-            docker compose pull api
-
-            # Redémarrer uniquement le container api
-            docker compose up -d --no-deps api
-
-      - name: Health Check
+      - name: Vérifier que l'API répond
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "⏳ Attente du démarrage..."
             sleep 15
-
-            # Vérifier que le container tourne
             STATUS=$(docker inspect --format='{{.State.Status}}' api_call221)
             if [ "$STATUS" != "running" ]; then
-              echo "❌ Container api_call221 n'est pas running (status: $STATUS)"
+              echo "❌ Container arrêté. Logs :"
+              docker logs api_call221 --tail 50
               exit 1
             fi
-
-            # Vérifier que l'API répond via la route /health
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health)
             if [ "$HTTP_CODE" != "200" ]; then
-              echo "❌ Health check échoué - HTTP $HTTP_CODE"
+              echo "❌ Health check échoué. Logs :"
+              docker logs api_call221 --tail 50
               exit 1
             fi
-
-            echo "✅ Health check réussi - HTTP $HTTP_CODE"
+            echo "✅ API opérationnelle"
 
       - name: Notification succès
         if: success()
@@ -101,15 +75,10 @@ jobs:
           server_port: 465
           username: ${{ secrets.GMAIL_USERNAME }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: "✅ Déploiement réussi - call-center-api"
+          subject: "✅ Déploiement réussi"
           to: ${{ secrets.GMAIL_USERNAME }}
           from: GitHub Actions
-          body: |
-            ✅ Déploiement réussi !
-            📦 Image: ${{ steps.meta.outputs.tags }}
-            🌐 URL: http://${{ secrets.EC2_HOST }}:3000/api-docs
-            🔗 Commit: ${{ github.sha }}
-            👤 Par: ${{ github.actor }}
+          body: "✅ Déploiement réussi ! Image: ${{ steps.meta.outputs.tags }}"
 
       - name: Notification échec
         if: failure()
@@ -119,12 +88,7 @@ jobs:
           server_port: 465
           username: ${{ secrets.GMAIL_USERNAME }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: "❌ Déploiement échoué - call-center-api"
+          subject: "❌ Déploiement échoué"
           to: ${{ secrets.GMAIL_USERNAME }}
           from: GitHub Actions
-          body: |
-            ❌ Déploiement échoué !
-            📦 Image: ${{ steps.meta.outputs.tags }}
-            🔗 Commit: ${{ github.sha }}
-            👤 Par: ${{ github.actor }}
-            ⚠️ Vérifie les logs GitHub Actions pour plus de détails.
+          body: "❌ Échec sur le commit ${{ github.sha }}"

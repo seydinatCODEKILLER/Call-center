@@ -1,27 +1,30 @@
-FROM node:18-alpine
-
+FROM node:18-alpine AS base
 WORKDIR /app
-
-# Active pnpm
 RUN corepack enable
 
-# Copie les fichiers de dépendances
+# Étape 1 : Installer les dépendances
+FROM base AS deps
 COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
-# ⬇️ LE TRICK : On donne une fausse URL temporaire pour que le fichier prisma.config.ts 
-# ne plante pas pendant la construction de l'image.
-ARG DATABASE_URL="postgresql://postgres:fake@localhost:5432/fake"
-ENV DATABASE_URL=$DATABASE_URL
-
-# Installe les dépendances
-RUN pnpm install
-
-# Copie tout le reste du code (src, prisma, prisma.config.ts, etc.)
+# Étape 2 : Construction
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+RUN pnpm build 
 
-# Génère le client Prisma (ne plantera plus grâce à la fausse URL)
-RUN npx prisma generate
+# Étape 3 : Image finale légère
+FROM base AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/package.json ./
 
 EXPOSE 3000
 
-CMD ["pnpm", "start"]
+# Génère le client Prisma avec la VRAIE URL du .env, puis lance l'api
+CMD ["sh", "-c", "npx prisma generate && node dist/src/index.js"]
