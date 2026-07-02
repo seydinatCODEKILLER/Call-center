@@ -43,7 +43,7 @@ jobs:
             cd ~/call-center-app
             sed -i "s|image: afrocodelatest/call-center-api:.*|image: ${{ steps.meta.outputs.tags }}|g" docker-compose.prod.yml
             docker compose -f docker-compose.prod.yml pull api
-            docker compose -f docker-compose.prod.yml up -d --no-deps api
+            docker compose -f docker-compose.prod.yml up -d api
 
       - name: Vérifier que l'API répond
         uses: appleboy/ssh-action@v1
